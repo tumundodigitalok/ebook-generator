@@ -6,10 +6,14 @@ async function generarPortada(titulo: string, colorPrincipal: string): Promise<s
     const res = await fetch("https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.OPENAI_API_KEY}` },
-      body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, size: "1024x1024", quality: "standard", response_format: "b64_json" }),
+      body: JSON.stringify({ model: "dall-e-3", prompt, n: 1, size: "1024x1024", quality: "standard", response_format: "url" }),
     });
     const data = await res.json();
-    return data.data?.[0]?.b64_json || null;
+    const url = data.data?.[0]?.url;
+    if (!url) return null;
+    const imgRes = await fetch(url);
+    const buf = await imgRes.arrayBuffer();
+    return Buffer.from(buf).toString("base64");
   } catch (e) { console.error("[PDF portada]", e); return null; }
 }
 

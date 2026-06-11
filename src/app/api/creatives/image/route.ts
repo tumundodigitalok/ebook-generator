@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
         n: 1,
         size: "1024x1024",
         quality: "standard",
-        response_format: "b64_json",
+        response_format: "url",
       }),
     });
 
@@ -34,13 +34,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: data.error?.message || "Error DALL-E" }, { status: 400 });
     }
 
-    const imageBase64 = data.data?.[0]?.b64_json;
-    if (!imageBase64) {
+    const imageUrl = data.data?.[0]?.url;
+    if (!imageUrl) {
       return NextResponse.json({ ok: false, error: "No image returned" }, { status: 400 });
     }
 
+    // Descargar la imagen y convertir a base64 para el frontend
+    const imgResponse = await fetch(imageUrl);
+    const arrayBuffer = await imgResponse.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+
     console.log("[DALL-E] ✅ Image generated");
-    return NextResponse.json({ ok: true, imageBase64, mimeType: "image/png" });
+    return NextResponse.json({ ok: true, imageBase64: base64, mimeType: "image/png" });
 
   } catch (err) {
     console.error("[DALL-E] Exception:", err);

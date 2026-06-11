@@ -13,7 +13,7 @@ export async function GET() {
       method: "POST",
       headers: { "Content-Type": "application/json", "Authorization": `Bearer ${key}` },
       body: JSON.stringify({
-        model: "dall-e-3",
+        model: "dall-e-2",
         prompt: "A simple red circle on white background",
         n: 1,
         size: "1024x1024",

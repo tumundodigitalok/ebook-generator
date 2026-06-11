@@ -8,13 +8,27 @@ export async function POST(req: NextRequest) {
     : estilo === "minimal" ? "clean white minimalist studio background, elegant professional"
     : "bold high contrast colors, striking aggressive style";
 
-  const prompt = `Create a professional Instagram marketing post (1:1 square format) for a digital product called "${tema}".
+  const prompt = `Design a high-quality professional social media advertising image for a digital product.
 
-Layout: Dark/black background. Large bold title text "${headline}" taking up 40% of the image. Below it, 3-4 bullet points with checkmarks listing key benefits. A bold colored CTA button at the bottom with text "${cta}". Include relevant product mockup photo or lifestyle image related to ${tema} on the right side.
+PRODUCT: "${tema}"
+HEADLINE: "${headline}"
+CTA BUTTON TEXT: "${cta}"
 
-Style: ${estiloDesc}. Professional marketing design like a high-end digital product advertisement. Bold typography, high contrast, clean layout. Similar to premium online course or ebook ads. No lorem ipsum. All text in Spanish.
+VISUAL STYLE: ${estiloDesc}
 
-Visual requirements: Product mockup image showing the digital product (ebook, guide, or course). Icons or badges showing value (e.g. "150+ protocols", "instant access"). Real photography quality. Commercial advertising standard.`;
+DESIGN REQUIREMENTS:
+- Split layout: left side has bold large typography with the headline, bullet points with benefits, and a CTA button; right side has a realistic product mockup (ebook, guide, notebook, or digital course visual) with relevant lifestyle photography related to the product topic
+- Background: dark or black with subtle texture or gradient
+- Typography: extra bold, modern sans-serif, high contrast white and accent color text
+- Include 3-4 benefit icons or checkmarks with short benefit text
+- Add a prominent rounded CTA button at the bottom in a bright accent color
+- Include trust badges or small icons (instant access, lifetime, guarantee)
+- Product mockup should look like a real physical book or tablet showing content related to "${tema}"
+- Real photography elements: include a relevant human or hands interacting with the product
+- Professional commercial advertising quality, like a $50,000 marketing campaign
+- All Spanish text, no placeholder text
+- Ultra realistic, photographic quality, 4K resolution aesthetic
+- NO price shown unless specified`;
 
   try {
     const response = await fetch("https://api.openai.com/v1/images/generations", {

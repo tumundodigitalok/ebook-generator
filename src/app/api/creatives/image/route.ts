@@ -1,64 +1,49 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Extrae palabras clave del tema para buscar foto relevante
-function extractKeywords(tema: string): string {
-  const stopwords = ["de", "el", "la", "los", "las", "un", "una", "para", "con", "en", "del", "al", "y", "o", "a"];
-  return tema
-    .toLowerCase()
-    .split(/\s+/)
-    .filter(w => w.length > 3 && !stopwords.includes(w))
-    .slice(0, 3)
-    .join(",");
-}
-
 export async function POST(req: NextRequest) {
-  const { tema = "business", width = 1080, height = 1080 } = await req.json();
+  const { tema = "business", estilo = "dark", headline = "", cta = "", precio = "" } = await req.json();
 
-  const keywords = extractKeywords(tema) || "business,success,professional";
-  const seed = Math.floor(Math.random() * 9999);
+  const estiloDesc = estilo === "dark" ? "dark cinematic dramatic background, moody atmosphere, deep shadows"
+    : estilo === "gradient" ? "vibrant colorful gradient background, neon lights, energetic"
+    : estilo === "minimal" ? "clean white minimalist studio background, elegant professional"
+    : "bold high contrast colors, striking aggressive style";
 
-  // LoremFlickr — sin API key, fotos por keyword
-  const url = `https://loremflickr.com/${width}/${height}/${encodeURIComponent(keywords)}?random=${seed}&lock=0`;
+  const prompt = `Professional social media advertisement image. Product: "${tema}". ${estiloDesc}. The ad has bold text overlay "${headline}", a prominent CTA button "${cta}", price tag "$${precio} USD". Style: real marketing ad, commercial photography quality, high contrast text, professional layout. No borders, full bleed image. Photorealistic.`;
 
   try {
-    console.log(`[Photo] Fetching background for "${keywords}"...`);
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 20000);
-    const response = await fetch(url, {
-      signal: controller.signal,
-      redirect: "follow",
+    const response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: "dall-e-3",
+        prompt,
+        n: 1,
+        size: "1024x1024",
+        quality: "standard",
+        response_format: "b64_json",
+      }),
     });
-    clearTimeout(timer);
+
+    const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
+      console.error("[DALL-E] Error:", JSON.stringify(data).slice(0, 300));
+      return NextResponse.json({ ok: false, error: data.error?.message || "Error DALL-E" }, { status: 400 });
     }
 
-    const contentType = response.headers.get("content-type") || "image/jpeg";
-    const arrayBuffer = await response.arrayBuffer();
-    const base64 = Buffer.from(arrayBuffer).toString("base64");
-    console.log(`[Photo] ✅ Got ${arrayBuffer.byteLength} bytes, type: ${contentType}`);
+    const imageBase64 = data.data?.[0]?.b64_json;
+    if (!imageBase64) {
+      return NextResponse.json({ ok: false, error: "No image returned" }, { status: 400 });
+    }
 
-    return NextResponse.json({ ok: true, imageBase64: base64, mimeType: contentType });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error("[Photo] Error:", msg);
+    console.log("[DALL-E] ✅ Image generated");
+    return NextResponse.json({ ok: true, imageBase64, mimeType: "image/png" });
 
-    // Fallback: Picsum Photos (fotos aleatorias hermosas, siempre funciona)
-    try {
-      const fallbackUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
-      console.log("[Photo] Fallback to Picsum...");
-      const controller2 = new AbortController();
-      const timer2 = setTimeout(() => controller2.abort(), 15000);
-      const r2 = await fetch(fallbackUrl, { signal: controller2.signal, redirect: "follow" });
-      clearTimeout(timer2);
-      if (r2.ok) {
-        const buf = await r2.arrayBuffer();
-        const b64 = Buffer.from(buf).toString("base64");
-        return NextResponse.json({ ok: true, imageBase64: b64, mimeType: "image/jpeg" });
-      }
-    } catch { /* ignore */ }
-
-    return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  } catch (err) {
+    console.error("[DALL-E] Exception:", err);
+    return NextResponse.json({ ok: false, error: String(err) }, { status: 500 });
   }
 }

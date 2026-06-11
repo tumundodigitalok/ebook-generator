@@ -138,13 +138,17 @@ export default function App() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(ebook),
     });
-    if (res.ok) {
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url; a.download = `${ebook.titulo}.pdf`; a.click();
-    } else alert("Error generando PDF");
     setDownloading(false);
+    if (res.ok) {
+      const html = await res.text();
+      const ventana = window.open("", "_blank");
+      if (ventana) {
+        ventana.document.write(html);
+        ventana.document.close();
+        // Auto-print para guardar como PDF
+        setTimeout(() => ventana.print(), 1500);
+      }
+    } else alert("Error generando PDF");
   }
 
   async function generarWeb() {
@@ -180,20 +184,17 @@ export default function App() {
   async function generarImagenIA() {
     if (!crSeleccionada) return;
     setCrImagenGenerating(true);
-    setCrImagenIA(null);
-    const prompt = buildAdPrompt(crSeleccionada, crFormato, crEstilo, crTema, crDesc, crPrecio);
     const res = await fetch("/api/creatives/image", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ tema: crTema, estilo: crEstilo, headline: crSeleccionada.headline, cta: crSeleccionada.cta, precio: crPrecio }),
     });
     const json = await res.json();
     setCrImagenGenerating(false);
     if (json.ok) {
       const url = `data:${json.mimeType};base64,${json.imageBase64}`;
-      setCrImagenIA(url);
-      if (crSeleccionada) setCrImagenesGen(prev => ({ ...prev, [crSeleccionada.id]: url }));
-    } else alert("Error generando imagen: " + json.error);
+      setCrImagenesGen(prev => ({ ...prev, [crSeleccionada.id]: url }));
+    } else alert("Error: " + json.error);
   }
 
   function buildAdPrompt(v: Variante, formato: string, estilo: string, tema: string, desc: string, precio: string) {
@@ -228,25 +229,22 @@ export default function App() {
     const variantes: Variante[] = json.variantes;
     setCrVariantes(variantes);
     setCrSeleccionada(variantes[0]);
-    // Buscar foto de fondo una sola vez (todas las variantes usan la misma foto base)
+    // Generar imagen con DALL-E 3 para cada variante
     setCrImagenesGenerating(true);
     setCrImagenesGen({});
-    try {
-      const r = await fetch("/api/creatives/image", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tema: crTema, width: 1080, height: 1080 })
-      });
-      const d = await r.json();
-      if (d.ok) {
-        const url = `data:${d.mimeType};base64,${d.imageBase64}`;
-        // Misma foto para todas las variantes — el diseño CSS cambia el look de cada una
-        const imgs: Record<number, string> = {};
-        variantes.forEach(v => { imgs[v.id] = url; });
-        setCrImagenesGen(imgs);
-      } else {
-        console.error("Error foto:", d.error);
-      }
-    } catch (e) { console.error("Exception foto:", e); }
+    for (const v of variantes) {
+      try {
+        const r = await fetch("/api/creatives/image", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ tema: crTema, estilo: crEstilo, headline: v.headline, cta: v.cta, precio: crPrecio })
+        });
+        const d = await r.json();
+        if (d.ok) {
+          const url = `data:${d.mimeType};base64,${d.imageBase64}`;
+          setCrImagenesGen(prev => ({ ...prev, [v.id]: url }));
+        } else console.error(`Variante ${v.id}:`, d.error);
+      } catch (e) { console.error(`Variante ${v.id}:`, e); }
+    }
     setCrImagenesGenerating(false);
   }
 

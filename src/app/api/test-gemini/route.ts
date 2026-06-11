@@ -18,7 +18,6 @@ export async function GET() {
         n: 1,
         size: "1024x1024",
         quality: "standard",
-        response_format: "url",
       }),
     });
     const data = await r.json();
